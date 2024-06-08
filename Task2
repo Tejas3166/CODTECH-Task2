@@ -1,0 +1,282 @@
+/* Library Management system */
+
+import sqlite3
+
+def initialize_db():
+    conn = sqlite3.connect('library.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS books (
+        book_id INTEGER PRIMARY KEY,
+        title TEXT,
+        author TEXT,
+        year INTEGER,
+        isbn TEXT,
+        available INTEGER DEFAULT 1
+    )
+    ''')
+    
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS members (
+        member_id INTEGER PRIMARY KEY,
+        name TEXT,
+        email TEXT,
+        phone TEXT
+    )
+    ''')
+    
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS transactions (
+        trans_id INTEGER PRIMARY KEY,
+        book_id INTEGER,
+        member_id INTEGER,
+        checkout_date TEXT,
+        return_date TEXT,
+        FOREIGN KEY (book_id) REFERENCES books(book_id),
+        FOREIGN KEY (member_id) REFERENCES members(member_id)
+    )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+initialize_db()
+import tkinter as tk
+from tkinter import messagebox
+from tkinter import ttk
+import sqlite3
+from datetime import datetime
+
+def run_query(query, parameters=()):
+    conn = sqlite3.connect('library.db')
+    cursor = conn.cursor()
+    cursor.execute(query, parameters)
+    conn.commit()
+    return cursor
+
+class LibraryManagementSystem:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Library Management System")
+        
+        self.create_widgets()
+    
+    def create_widgets(self):
+        # Create tabs
+        tab_control = ttk.Notebook(self.root)
+        
+        self.book_tab = ttk.Frame(tab_control)
+        self.member_tab = ttk.Frame(tab_control)
+        self.transaction_tab = ttk.Frame(tab_control)
+        
+        tab_control.add(self.book_tab, text='Books')
+        tab_control.add(self.member_tab, text='Members')
+        tab_control.add(self.transaction_tab, text='Transactions')
+        
+        tab_control.pack(expand=1, fill='both')
+        
+        self.create_book_tab()
+        self.create_member_tab()
+        self.create_transaction_tab()
+    
+    def create_book_tab(self):
+        # Book management
+        book_frame = ttk.LabelFrame(self.book_tab, text='Book Management')
+        book_frame.grid(row=0, column=0, padx=20, pady=20)
+        
+        ttk.Label(book_frame, text="Title:").grid(row=0, column=0, padx=5, pady=5)
+        self.title_entry = ttk.Entry(book_frame)
+        self.title_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        ttk.Label(book_frame, text="Author:").grid(row=1, column=0, padx=5, pady=5)
+        self.author_entry = ttk.Entry(book_frame)
+        self.author_entry.grid(row=1, column=1, padx=5, pady=5)
+        
+        ttk.Label(book_frame, text="Year:").grid(row=2, column=0, padx=5, pady=5)
+        self.year_entry = ttk.Entry(book_frame)
+        self.year_entry.grid(row=2, column=1, padx=5, pady=5)
+        
+        ttk.Label(book_frame, text="ISBN:").grid(row=3, column=0, padx=5, pady=5)
+        self.isbn_entry = ttk.Entry(book_frame)
+        self.isbn_entry.grid(row=3, column=1, padx=5, pady=5)
+        
+        self.add_book_button = ttk.Button(book_frame, text="Add Book", command=self.add_book)
+        self.add_book_button.grid(row=4, column=0, columnspan=2, pady=10)
+        
+        self.book_tree = ttk.Treeview(self.book_tab, columns=("ID", "Title", "Author", "Year", "ISBN", "Available"), show='headings')
+        self.book_tree.heading("ID", text="ID")
+        self.book_tree.heading("Title", text="Title")
+        self.book_tree.heading("Author", text="Author")
+        self.book_tree.heading("Year", text="Year")
+        self.book_tree.heading("ISBN", text="ISBN")
+        self.book_tree.heading("Available", text="Available")
+        self.book_tree.grid(row=1, column=0, padx=20, pady=20)
+        
+        self.load_books()
+    
+    def add_book(self):
+        title = self.title_entry.get()
+        author = self.author_entry.get()
+        year = self.year_entry.get()
+        isbn = self.isbn_entry.get()
+        
+        if title and author and year and isbn:
+            query = "INSERT INTO books (title, author, year, isbn) VALUES (?, ?, ?, ?)"
+            parameters = (title, author, year, isbn)
+            run_query(query, parameters)
+            messagebox.showinfo("Success", "Book added successfully!")
+            self.load_books()
+        else:
+            messagebox.showwarning("Warning", "All fields are required.")
+    
+    def load_books(self):
+        for row in self.book_tree.get_children():
+            self.book_tree.delete(row)
+        
+        query = "SELECT * FROM books"
+        rows = run_query(query)
+        
+        for row in rows:
+            self.book_tree.insert("", "end", values=row)
+    
+    def create_member_tab(self):
+        # Member management
+        member_frame = ttk.LabelFrame(self.member_tab, text='Member Management')
+        member_frame.grid(row=0, column=0, padx=20, pady=20)
+        
+        ttk.Label(member_frame, text="Name:").grid(row=0, column=0, padx=5, pady=5)
+        self.name_entry = ttk.Entry(member_frame)
+        self.name_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        ttk.Label(member_frame, text="Email:").grid(row=1, column=0, padx=5, pady=5)
+        self.email_entry = ttk.Entry(member_frame)
+        self.email_entry.grid(row=1, column=1, padx=5, pady=5)
+        
+        ttk.Label(member_frame, text="Phone:").grid(row=2, column=0, padx=5, pady=5)
+        self.phone_entry = ttk.Entry(member_frame)
+        self.phone_entry.grid(row=2, column=1, padx=5, pady=5)
+        
+        self.add_member_button = ttk.Button(member_frame, text="Add Member", command=self.add_member)
+        self.add_member_button.grid(row=3, column=0, columnspan=2, pady=10)
+        
+        self.member_tree = ttk.Treeview(self.member_tab, columns=("ID", "Name", "Email", "Phone"), show='headings')
+        self.member_tree.heading("ID", text="ID")
+        self.member_tree.heading("Name", text="Name")
+        self.member_tree.heading("Email", text="Email")
+        self.member_tree.heading("Phone", text="Phone")
+        self.member_tree.grid(row=1, column=0, padx=20, pady=20)
+        
+        self.load_members()
+    
+    def add_member(self):
+        name = self.name_entry.get()
+        email = self.email_entry.get()
+        phone = self.phone_entry.get()
+        
+        if name and email and phone:
+            query = "INSERT INTO members (name, email, phone) VALUES (?, ?, ?)"
+            parameters = (name, email, phone)
+            run_query(query, parameters)
+            messagebox.showinfo("Success", "Member added successfully!")
+            self.load_members()
+        else:
+            messagebox.showwarning("Warning", "All fields are required.")
+    
+    def load_members(self):
+        for row in self.member_tree.get_children():
+            self.member_tree.delete(row)
+        
+        query = "SELECT * FROM members"
+        rows = run_query(query)
+        
+        for row in rows:
+            self.member_tree.insert("", "end", values=row)
+    
+    def create_transaction_tab(self):
+        # Transaction management
+        transaction_frame = ttk.LabelFrame(self.transaction_tab, text='Transaction Management')
+        transaction_frame.grid(row=0, column=0, padx=20, pady=20)
+        
+        ttk.Label(transaction_frame, text="Book ID:").grid(row=0, column=0, padx=5, pady=5)
+        self.book_id_entry = ttk.Entry(transaction_frame)
+        self.book_id_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        ttk.Label(transaction_frame, text="Member ID:").grid(row=1, column=0, padx=5, pady=5)
+        self.member_id_entry = ttk.Entry(transaction_frame)
+        self.member_id_entry.grid(row=1, column=1, padx=5, pady=5)
+        
+        self.checkout_button = ttk.Button(transaction_frame, text="Checkout Book", command=self.checkout_book)
+        self.checkout_button.grid(row=2, column=0, columnspan=2, pady=10)
+        
+        self.return_button = ttk.Button(transaction_frame, text="Return Book", command=self.return_book)
+        self.return_button.grid(row=3, column=0, columnspan=2, pady=10)
+        
+        self.transaction_tree = ttk.Treeview(self.transaction_tab, columns=("ID", "Book ID", "Member ID", "Checkout Date", "Return Date"), show='headings')
+        self.transaction_tree.heading("ID", text="ID")
+        self.transaction_tree.heading("Book ID", text="Book ID")
+        self.transaction_tree.heading("Member ID", text="Member ID")
+        self.transaction_tree.heading("Checkout Date", text="Checkout Date")
+        self.transaction_tree.heading("Return Date", text="Return Date")
+        self.transaction_tree.grid(row=4, column=0, padx=20, pady=20)
+        
+        self.load_transactions()
+    
+    def checkout_book(self):
+        book_id = self.book_id_entry.get()
+        member_id = self.member_id_entry.get()
+        
+        if book_id and member_id:
+            query = "SELECT available FROM books WHERE book_id = ?"
+            result = run_query(query, (book_id,))
+            available = result.fetchone()
+            
+            if available and available[0] == 1:
+                checkout_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                query = "INSERT INTO transactions (book_id, member_id, checkout_date) VALUES (?, ?, ?)"
+                parameters = (book_id, member_id, checkout_date)
+                run_query(query, parameters)
+                
+                query = "UPDATE books SET available = 0 WHERE book_id = ?"
+                run_query(query, (book_id,))
+                
+                messagebox.showinfo("Success", "Book checked out successfully!")
+                self.load_transactions()
+                self.load_books()
+            else:
+                messagebox.showwarning("Warning", "Book is not available.")
+        else:
+            messagebox.showwarning("Warning", "Book ID and Member ID are required.")
+    
+    def return_book(self):
+        book_id = self.book_id_entry.get()
+        
+        if book_id:
+            return_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            query = "UPDATE transactions SET return_date = ? WHERE book_id = ? AND return_date IS NULL"
+            run_query(query, (return_date, book_id))
+            
+            query = "UPDATE books SET available = 1 WHERE book_id = ?"
+            run_query(query, (book_id,))
+            
+            messagebox.showinfo("Success", "Book returned successfully!")
+            self.load_transactions()
+            self.load_books()
+        else:
+            messagebox.showwarning("Warning", "Book ID is required.")
+    
+    def load_transactions(self):
+        for row in self.transaction_tree.get_children():
+            self.transaction_tree.delete(row)
+        
+        query = "SELECT * FROM transactions"
+        rows = run_query(query)
+        
+        for row in rows:
+            self.transaction_tree.insert("", "end", values=row)
+
+# Running the application
+if __name__ == "__main__":
+    root = tk.Tk()
+    application = LibraryManagementSystem(root)
+    root.mainloop()
